@@ -232,10 +232,24 @@ _GAIT_FREQ_MULT: dict[str, float] = {}
 #
 #   uv run python -m mjlab.tasks.pupper_gait.visualize_reference --gait lift
 # =============================================================================
-_GAIT_TOUCHDOWN["lift"] = None  # (FR, FL, BR, LB) touchdown phases in [0, 1)
-_GAIT_STRIDE["lift"] = None  # fore-aft half-stride [m]
-_GAIT_STANCE_Z["lift"] = None  # foot depth below the hip during stance [m]
-_GAIT_SWING_LIFT["lift"] = None  # foot rise above the stance plane in swing [m]
+_GAIT_TOUCHDOWN["lift"] = (0.0, 0.5, 0.5, 0.0)  # (FR, FL, BR, LB) touchdown phases
+_GAIT_STRIDE["lift"] = 0.0  # fore-aft half-stride [m]
+_GAIT_STANCE_Z["lift"] = -0.14  # foot depth below the hip during stance [m]
+_GAIT_SWING_LIFT["lift"] = 0.09  # foot rise above the stance plane in swing [m]
+
+# Fast gait: the MixedGaits fast slot (|vx| >= 0.5 m/s). A longer, crouched
+# stride at 2x cadence with a long, low swing: implies ~1.2 m/s no-slip with the
+# worst joint move at ~2.8 Nm (under the 3 Nm limit). The low lift is what keeps
+# it feasible -- a trot-height swing folds the knee too fast. reach_back reuses
+# it; backward commands play it time-reversed. Score variants with
+# scripts/tools/check_gait.py.
+for _g in ("reach", "reach_back"):
+  _GAIT_TOUCHDOWN[_g] = (0.0, 0.5, 0.5, 0.0)
+  _GAIT_STRIDE[_g] = 0.09
+  _GAIT_STANCE_Z[_g] = -0.10
+  _GAIT_SWING_LIFT[_g] = 0.03
+  _GAIT_SWING_KF[_g] = 5
+  _GAIT_FREQ_MULT[_g] = 2.0
 
 
 def _base_cycle(
