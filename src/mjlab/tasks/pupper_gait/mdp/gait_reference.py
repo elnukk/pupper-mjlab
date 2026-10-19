@@ -251,6 +251,15 @@ for _g in ("reach", "reach_back"):
   _GAIT_SWING_KF[_g] = 5
   _GAIT_FREQ_MULT[_g] = 2.0
 
+# Jump slot starter (Mystery task): a pronk, all four legs in phase, so the
+# slot reference and the jump rewards agree. Placeholder to capture from;
+# captured_jump_gait.npz overrides it once it exists.
+_GAIT_TOUCHDOWN["jump"] = (0.0, 0.0, 0.0, 0.0)
+_GAIT_STRIDE["jump"] = 0.0  # in place; the slot's velocity reward carries it
+_GAIT_STANCE_Z["jump"] = -0.12
+_GAIT_SWING_LIFT["jump"] = 0.06
+_GAIT_SWING_KF["jump"] = 3  # half the cycle in swing: room for flight
+
 
 def _base_cycle(
   stride: float | tuple[float, float],
