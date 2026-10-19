@@ -55,6 +55,14 @@ def jump_capture_duration_s() -> float | None:
   return float(np.load(_CAPTURED_JUMP_FILE)["duration_s"])
 
 
+def jump_capture_touchdown_s() -> float | None:
+  """Touchdown time into the captured jump [s], if the capture records one."""
+  if not _CAPTURED_JUMP_FILE.exists():
+    return None
+  data = np.load(_CAPTURED_JUMP_FILE)
+  return float(data["touchdown_s"]) if "touchdown_s" in data.files else None
+
+
 def rotation_x(a):
   return np.array(
     [

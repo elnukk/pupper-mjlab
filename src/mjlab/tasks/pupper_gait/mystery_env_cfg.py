@@ -19,7 +19,10 @@ from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationT
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.tasks.pupper_gait import mdp
-from mjlab.tasks.pupper_gait.mdp.gait_reference import jump_capture_duration_s
+from mjlab.tasks.pupper_gait.mdp.gait_reference import (
+  jump_capture_duration_s,
+  jump_capture_touchdown_s,
+)
 from mjlab.tasks.pupper_gait.pupper_gait_env_cfg import (
   GAIT_BLEND_SPEED,
   GAIT_FREQUENCY,
@@ -84,7 +87,13 @@ JUMP_CROSS_FADE_S: float = 0.06
 # 0.54 s flight). The REFERENCE window ends a lead before that: the fade to
 # the running gait completes ~0.1 s pre-touchdown, so the legs are already
 # cycling for the stride when the feet meet the floor -- run, jump, run.
-JUMP_TOUCHDOWN_S: float = 0.84 if _capture is not None else JUMP_PLAYBACK_S
+# A capture that records its own touchdown_s overrides the 0.84 above.
+_touchdown = jump_capture_touchdown_s()
+JUMP_TOUCHDOWN_S: float = (
+  JUMP_PLAYBACK_S
+  if _capture is None
+  else (_touchdown if _touchdown is not None else 0.84)
+)
 JUMP_PRE_LAND_LEAD_S: float = 0.10
 JUMP_ACTIVE_S = JUMP_TOUCHDOWN_S - JUMP_PRE_LAND_LEAD_S + JUMP_CROSS_FADE_S
 
