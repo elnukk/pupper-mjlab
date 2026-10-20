@@ -28,6 +28,10 @@ installed now, since the policy observes it during capture):
 
   python -m mjlab.tasks.pupper_gait.capture_jump \\
       --wandb-run-path <entity>/mjlab/<run-id> --round-index 1
+
+``--task Mjlab-JumpOnly-Flat-Pupper-v3`` captures the jump-only task instead:
+one jump per episode at its fixed launch time, command zero (``--speed`` and
+``--jumps`` are ignored).
 """
 
 from __future__ import annotations
@@ -121,8 +125,15 @@ def rollout(
   from mjlab.tasks.pupper_gait.mystery_env_cfg import JUMP_SLOT_S, JUMP_STAND_HEIGHT
   from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
 
-  assert jumps <= _MAX_JUMPS, f"at most {_MAX_JUMPS} slots per episode"
   env_cfg = load_env_cfg(task, play=True)
+  # The jump-only task has no slot schedule: one jump per episode, launched
+  # after the hold, with the command pinned at zero.
+  slotted = "reset_jump_schedule" in env_cfg.events
+  if not slotted:
+    from mjlab.tasks.pupper_gait.jump_only_env_cfg import JUMP_ONLY_HOLD_S
+
+    speed, jumps = 0.0, 1
+  assert jumps <= _MAX_JUMPS, f"at most {_MAX_JUMPS} slots per episode"
   env_cfg.scene.num_envs = num_envs
   env_cfg.seed = seed
   agent_cfg = load_rl_cfg(task)
@@ -154,19 +165,23 @@ def rollout(
 
   twist._update_command = _hold  # type: ignore[method-assign]
 
-  # Fixed schedule on the gait grid, replacing the random reset-time one.
-  first = np.ceil(warmup_s / JUMP_SLOT_S) * JUMP_SLOT_S
-  sep = np.ceil(separation_s / JUMP_SLOT_S) * JUMP_SLOT_S
-  starts = first + sep * np.arange(jumps)
+  if slotted:
+    # Fixed schedule on the gait grid, replacing the random reset-time one.
+    first = np.ceil(warmup_s / JUMP_SLOT_S) * JUMP_SLOT_S
+    sep = np.ceil(separation_s / JUMP_SLOT_S) * JUMP_SLOT_S
+    starts = first + sep * np.arange(jumps)
+  else:
+    starts = np.array([JUMP_ONLY_HOLD_S])
   n_steps = int(np.ceil((starts[-1] + window_s) / dt)) + 2
 
   alive = torch.ones(num_envs, dtype=torch.bool, device=device)
   q, t, z, flight = [], [], [], []
   with torch.no_grad():
     obs, _ = env.reset()
-    buf = _slot_starts(base)
-    buf[:] = float("inf")
-    buf[:, :jumps] = torch.tensor(starts, device=device, dtype=buf.dtype)
+    if slotted:
+      buf = _slot_starts(base)
+      buf[:] = float("inf")
+      buf[:, :jumps] = torch.tensor(starts, device=device, dtype=buf.dtype)
     for _ in range(n_steps):
       obs, _, _, _ = env.step(policy(obs))
       alive &= ~base.reset_buf
@@ -188,6 +203,7 @@ def rollout(
     "step_dt": dt,
     "stand_height": JUMP_STAND_HEIGHT,
     "kept_envs": int(keep.sum()),
+    "speed": speed,
   }
 
 
@@ -246,6 +262,7 @@ def main(
     device,
     seed,
   )
+  speed = rec["speed"]  # the jump-only task pins it to zero
   dt = rec["step_dt"]
   grid = table_times(GAIT_N_SAMPLES, duration)
 

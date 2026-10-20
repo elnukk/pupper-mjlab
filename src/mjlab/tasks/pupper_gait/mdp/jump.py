@@ -237,8 +237,10 @@ class torso_clearance:
     return torch.clamp((min_clearance - bottom) / min_clearance, min=0.0)
 
 
-def _post_launch_gate(env: "ManagerBasedRlEnv", gate_before_s: float) -> torch.Tensor:
-  """1.0 once the reference launch window has opened, 0.0 during the hold.
+def _post_launch_gate(
+  env: "ManagerBasedRlEnv", gate_before_s: float, gate_until_s: float = float("inf")
+) -> torch.Tensor:
+  """1.0 inside ``[gate_before_s, gate_until_s)``, 0.0 during the hold.
 
   Both jump rewards are gated to the post-launch window: run zuy6c85c earned
   them with an airborne windup pre-hop during the hold, recycling the reset
@@ -247,12 +249,13 @@ def _post_launch_gate(env: "ManagerBasedRlEnv", gate_before_s: float) -> torch.T
   before the reference launches now earns exactly nothing.
   """
   t = env.episode_length_buf.float() * env.step_dt
-  return (t >= gate_before_s).float()
+  return ((t >= gate_before_s) & (t < gate_until_s)).float()
 
 
 def jump_up_velocity(
   env: "ManagerBasedRlEnv",
   gate_before_s: float = 0.0,
+  gate_until_s: float = float("inf"),
   asset_cfg: SceneEntityCfg = _ROBOT,
 ) -> torch.Tensor:
   """Upward base velocity, clamped at zero -- the dense launch gradient.
@@ -261,12 +264,14 @@ def jump_up_velocity(
   ground, and action noise never assembles a coherent four-leg launch on its
   own; this term pays every increment of upward push immediately. Its episode
   integral is proportional to the total rise, and the clamp means descent is
-  never punished (that is the landing, not a mistake). Zero before
-  ``gate_before_s`` -- see ``_post_launch_gate``.
+  never punished (that is the landing, not a mistake). Zero outside
+  ``[gate_before_s, gate_until_s)`` -- see ``_post_launch_gate``. Closing the
+  window at touchdown stops crouch-and-rise bobbing after the landing from
+  earning it again.
   """
   asset: Entity = env.scene[asset_cfg.name]
   up = torch.clamp(asset.data.root_link_lin_vel_w[:, 2], min=0.0)
-  return _post_launch_gate(env, gate_before_s) * up
+  return _post_launch_gate(env, gate_before_s, gate_until_s) * up
 
 
 def jump_hold_descent(

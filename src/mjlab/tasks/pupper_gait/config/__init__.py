@@ -1,4 +1,5 @@
 from mjlab.tasks.pupper.rl import PupperOnPolicyRunner
+from mjlab.tasks.pupper_gait.jump_only_env_cfg import pupper_jump_only_env_cfg
 from mjlab.tasks.pupper_gait.mystery_env_cfg import (
   pupper_mystery_bumpy_env_cfg,
   pupper_mystery_env_cfg,
@@ -92,5 +93,17 @@ register_mjlab_task(
   env_cfg=pupper_mystery_bumpy_env_cfg(),
   play_env_cfg=pupper_mystery_bumpy_env_cfg(play=True),
   rl_cfg=_mystery_rl,
+  runner_cls=PupperOnPolicyRunner,
+)
+
+# One in-place jump per episode, to perfect the motion before capturing it as
+# the Mystery slot reference (see jump_only_env_cfg).
+_jump_only_rl = pupper_gait_ppo_runner_cfg()
+_jump_only_rl.experiment_name = "pupper_jump_only"
+register_mjlab_task(
+  task_id="Mjlab-JumpOnly-Flat-Pupper-v3",
+  env_cfg=pupper_jump_only_env_cfg(),
+  play_env_cfg=pupper_jump_only_env_cfg(play=True),
+  rl_cfg=_jump_only_rl,
   runner_cls=PupperOnPolicyRunner,
 )
