@@ -39,7 +39,6 @@ from mjlab.tasks.pupper_gait.pupper_gait_env_cfg import (
   GAIT_N_SAMPLES,
   GAIT_REWARD_PHASE_LEAD_STEPS,
   GAIT_STD,
-  GALLOP_STD,
 )
 
 # Stand still this long after reset before the reference launches: the robot
@@ -61,9 +60,13 @@ JUMP_ONLY_EPISODE_S: float = JUMP_ONLY_HOLD_S + JUMP_ONLY_PLAYBACK_S + 1.25
 # Loose tracking std from launch to a little past the playback (the landing).
 JUMP_ONLY_LOOSE_UNTIL_S: float = JUMP_ONLY_HOLD_S + JUMP_ONLY_PLAYBACK_S + 0.1
 
-# Same geometry as the Mystery slot terms.
+# Same stand height as the Mystery slot terms. The height cap is much lower:
+# with 0.40 the first policy that flew (~8.5 airborne reward) bought height
+# with a pitched rear-leg kick, because every extra centimeter outpaid the
+# form penalties. Past 6 cm the airborne term pays nothing more, so the only
+# reward left to earn is form.
 JUMP_ONLY_STAND_HEIGHT: float = 0.145
-JUMP_ONLY_HEIGHT_CAP: float = 0.40
+JUMP_ONLY_HEIGHT_CAP: float = 0.06
 JUMP_ONLY_TORSO_CLEARANCE: float = 0.02
 
 # A jump pitches harder than a walk; 45 deg still catches real falls.
@@ -128,14 +131,16 @@ def pupper_jump_only_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   for name in _LOCOMOTION_TERMS:
     r.pop(name, None)
 
-  # Named gait_tracking so the notebook's weight dict reaches it. Strict std
-  # (the trot's) during the hold and after landing, loose during the jump.
+  # Named gait_tracking so the notebook's weight dict reaches it. The trot's
+  # strict std throughout, the jump included: the loose (gallop) std let the
+  # policy swap the reference's four-legs-together push for a rear-only kick
+  # at almost no tracking cost.
   r["gait_tracking"] = RewardTermCfg(
     func=mdp.jump_tracking,
     weight=0.0,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-      "std": GALLOP_STD,
+      "std": GAIT_STD,
       "std_hold": GAIT_STD,
       "loose_from_s": JUMP_ONLY_HOLD_S,
       "loose_until_s": JUMP_ONLY_LOOSE_UNTIL_S,
